@@ -60,10 +60,12 @@ export class MediaRecorderManager {
         console.log("stop record")
         this.uiManager.showLoading(true)
         const blob = new Blob(this.recordedChunks, { type: Settings.recording.mimeType })
-        const fixedBlob = await this.videoProcessor.fixVideoDuration(blob)
-        const url = URL.createObjectURL(fixedBlob)
+        // const fixedBlob = await this.videoProcessor.fixVideoDuration(blob)
+        // const url = URL.createObjectURL(fixedBlob)
+        const url = URL.createObjectURL(blob)
         this.uiManager.showLoading(false)
-        this.uiManager.displayPostRecordButtons(url, fixedBlob)
+        // this.uiManager.displayPostRecordButtons(url, fixedBlob)
+        this.uiManager.displayPostRecordButtons(url, blob)
       }
 
       this.mediaRecorder.start()
