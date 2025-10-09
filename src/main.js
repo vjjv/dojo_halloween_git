@@ -15,6 +15,8 @@ import { UIManager } from "./ui"
 import { VideoProcessor } from "./videoProcessor"
 import { Settings } from "./settings"
 import { launchParams } from "./launchParams"
+
+
 ;(async function () {
   let audioContexts = []
   let monitorNodes = []
