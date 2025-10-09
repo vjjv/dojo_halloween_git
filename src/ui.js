@@ -144,7 +144,14 @@ export class UIManager {
     this.switchButton.style.display = "none"
 
     if (Settings.ui.displayPreview) {
-      this.displayPreview(url)
+      const isImage = typeof url === 'string' && url.startsWith('data:image/')
+      if (isImage) {
+        this.displayPreview(url)
+      } else {
+        setTimeout(() => {
+          this.displayPreview(url)
+        }, 500)
+      }
     }
 
     // Determine if this is an image or video
@@ -296,6 +303,19 @@ export class UIManager {
         z-index: -1;
       `
       document.body.appendChild(preview)
+      // Add error handling for video load/playback
+      preview.addEventListener('error', (e) => {
+        console.error('Preview video failed to load:', e, preview.error)
+      })
+      preview.addEventListener('stalled', (e) => {
+        console.error('Preview video stalled:', e)
+      })
+      preview.addEventListener('abort', (e) => {
+        console.error('Preview video aborted:', e)
+      })
+      preview.addEventListener('emptied', (e) => {
+        console.error('Preview video emptied:', e)
+      })
       // Create the canvas
       const canvas = document.createElement("canvas")
       canvas.id = "preview-canvas"
