@@ -448,25 +448,32 @@ class UIManager {
       this.displayPreview(url)
     }
 
+    // Determine if this is an image or video
+    const isImage = typeof url === 'string' && url.startsWith('data:image/')
+    const imageFileName = 'photo.png'
+    const imageMimeType = 'image/png'
+    const videoFileName = Settings.recording.outputFileName
+    const videoMimeType = Settings.recording.mimeType
+
     document.getElementById("download-button").onclick = () => {
       const a = document.createElement("a")
       a.href = url
-      a.download = Settings.recording.outputFileName
+      a.download = isImage ? imageFileName : videoFileName
       a.click()
       a.remove()
     }
 
     document.getElementById("share-button").onclick = async () => {
       try {
-        const file = new File([fixedBlob], Settings.recording.outputFileName, {
-          type: Settings.recording.mimeType,
+        const file = new File([fixedBlob], isImage ? imageFileName : videoFileName, {
+          type: isImage ? imageMimeType : videoMimeType,
         })
 
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
-            title: "Recorded Video",
-            text: "Check out this recording!",
+            title: isImage ? "Photo" : "Recorded Video",
+            text: isImage ? "Check out this photo!" : "Check out this recording!",
           })
           console.log("File shared successfully")
         } else {
