@@ -481,7 +481,7 @@ class UIManager {
     `
     bg.appendChild(container)
 
-    // Create the video element (hidden)
+    // Create the video element (visually hidden, but audio plays)
     const preview = document.createElement("video")
     preview.src = dataURL
     preview.id = "preview"
@@ -489,8 +489,17 @@ class UIManager {
     preview.autoplay = true
     preview.loop = true
     preview.playsInline = true
-    preview.muted = true // Ensure autoplay works on all browsers
-    preview.style = "display: none;"
+    preview.muted = false // Allow audio to play
+    preview.volume = 1.0
+    // Visually hide but keep audio
+    preview.style = `
+      position: absolute;
+      width: 0;
+      height: 0;
+      opacity: 0;
+      pointer-events: none;
+      z-index: -1;
+    `
     document.body.appendChild(preview)
 
     // Create the canvas
