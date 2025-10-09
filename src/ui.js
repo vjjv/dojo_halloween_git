@@ -128,7 +128,7 @@ export class UIManager {
     // Add white text below the video preview
     let previewText = document.createElement("div")
     previewText.id = "preview-lorem"
-    previewText.innerHTML = `Download you photo and share!<br>Tag us on Instagram<br>@altrarunning @experienceanewhigh`
+    previewText.innerHTML = `Download you photo and share! Tag us on Instagram<br>@altrarunning @experienceanewhigh`
     previewText.style = `
       position: fixed;
       left: 0;
@@ -198,7 +198,7 @@ export class UIManager {
     canvas.style = `
       display: block;
       max-width: 100%;
-      max-height: calc(100% - 16px);
+      max-height: calc(100% - 18px);
       margin: 0 auto;
       border-radius: 50px;
       background: black;
