@@ -310,6 +310,78 @@ class UIManager {
     this.loadingIcon = document.getElementById("loading")
     this.backButtonContainer = document.getElementById("back-button-container")
     this.recordPressedCount = 0
+
+    // --- Tap to take photo, long press to record ---
+    this.longPressTimeout = null
+    this.isRecording = false
+    this.longPressDuration = 400 // ms
+
+    // Remove any existing click listeners (main.js should not add its own)
+    this.recordButton.onclick = null
+    this.recordButton.onmousedown = null
+    this.recordButton.onmouseup = null
+    this.recordButton.ontouchstart = null
+    this.recordButton.ontouchend = null
+
+    // Mouse events
+    this.recordButton.addEventListener('mousedown', (e) => this._handlePressStart(e))
+    this.recordButton.addEventListener('mouseup', (e) => this._handlePressEnd(e))
+    this.recordButton.addEventListener('mouseleave', (e) => this._handlePressCancel(e))
+    // Touch events
+    this.recordButton.addEventListener('touchstart', (e) => this._handlePressStart(e))
+    this.recordButton.addEventListener('touchend', (e) => this._handlePressEnd(e))
+    this.recordButton.addEventListener('touchcancel', (e) => this._handlePressCancel(e))
+  }
+
+  _handlePressStart(e) {
+    if (this.isRecording) return
+    e.preventDefault()
+    // Animate outline scale up and reduce opacity for visual feedback during long press
+  this.recordOutline.style.transition = 'transform 0.2s cubic-bezier(0.4,0,0.2,1), opacity 0.2s cubic-bezier(0.4,0,0.2,1)'
+  this.recordOutline.style.transformOrigin = 'center center'
+  this.recordOutline.style.transform = 'translateX(-50%) scale(1.3)'
+  this.recordOutline.style.opacity = '0.5'
+    this.longPressTimeout = setTimeout(() => {
+      this.isRecording = true
+      this.updateRecordButtonState(true)
+      // Dispatch custom event for start recording
+      this.recordButton.dispatchEvent(new CustomEvent('record-start', {bubbles:true}))
+    }, this.longPressDuration)
+  }
+
+  _handlePressEnd(e) {
+    e.preventDefault()
+    // Revert outline animation
+  this.recordOutline.style.transform = 'translateX(-50%) scale(1)'
+  this.recordOutline.style.opacity = '1'
+    if (this.longPressTimeout) {
+      clearTimeout(this.longPressTimeout)
+      this.longPressTimeout = null
+      if (!this.isRecording) {
+        // Tap: take photo
+        this.recordButton.dispatchEvent(new CustomEvent('photo-capture', {bubbles:true}))
+      } else {
+        // End recording
+        this.isRecording = false
+        this.updateRecordButtonState(false)
+        this.recordButton.dispatchEvent(new CustomEvent('record-stop', {bubbles:true}))
+      }
+    }
+  }
+
+  _handlePressCancel(e) {
+    // Revert outline animation
+  this.recordOutline.style.transform = 'translateX(-50%) scale(1)'
+  this.recordOutline.style.opacity = '1'
+    if (this.longPressTimeout) {
+      clearTimeout(this.longPressTimeout)
+      this.longPressTimeout = null
+    }
+    if (this.isRecording) {
+      this.isRecording = false
+      this.updateRecordButtonState(false)
+      this.recordButton.dispatchEvent(new CustomEvent('record-stop', {bubbles:true}))
+    }
   }
 
   toggleRecordButton(isVisible) {
@@ -481,75 +553,91 @@ class UIManager {
     `
     bg.appendChild(container)
 
-    // Create the video element (visually hidden, but audio plays)
-    const preview = document.createElement("video")
-    preview.src = dataURL
-    preview.id = "preview"
-    preview.controls = false
-    preview.autoplay = true
-    preview.loop = true
-    preview.playsInline = true
-    preview.muted = false // Allow audio to play
-    preview.volume = 1.0
-    // Visually hide but keep audio
-    preview.style = `
-      position: absolute;
-      width: 0;
-      height: 0;
-      opacity: 0;
-      pointer-events: none;
-      z-index: -1;
-    `
-    document.body.appendChild(preview)
-
-    // Create the canvas
-    const canvas = document.createElement("canvas")
-    canvas.id = "preview-canvas"
-    canvas.style = `
-      display: block;
-      max-width: 100%;
-      max-height: calc(100% - 18px);
-      margin: 0 auto;
-      border-radius: 50px;
-      background: black;
-      border: 8px solid white;
-    `
-    container.appendChild(canvas)
-
-    // Draw video frames to canvas
-    function drawVideoToCanvas() {
-      if (preview.readyState >= 2) {
-        // Set canvas size to match video
-        if (canvas.width !== preview.videoWidth || canvas.height !== preview.videoHeight) {
-          canvas.width = preview.videoWidth
-          canvas.height = preview.videoHeight
-          // Responsive container sizing
-          let maxW = window.innerWidth * 0.765
-          let maxH = window.innerHeight * 0.765
-          let ratio = preview.videoWidth / preview.videoHeight
-          let containerW = maxW
-          let containerH = maxW / ratio
-          if (containerH > maxH) {
-            containerH = maxH
-            containerW = maxH * ratio
+    let preview
+    if (typeof dataURL === 'string' && dataURL.startsWith('data:image/')) {
+      // Show image in preview
+      preview = document.createElement('img')
+      preview.src = dataURL
+      preview.id = 'preview'
+      preview.style = `
+        display: block;
+        max-width: 98%;
+        max-height: calc(100% - 18px);
+        margin: 0 auto;
+        border-radius: 50px;
+        background: black;
+        border: 8px solid white;
+      `
+      container.appendChild(preview)
+    } else {
+      // Create the video element (visually hidden, but audio plays)
+      preview = document.createElement("video")
+      preview.src = dataURL
+      preview.id = "preview"
+      preview.controls = false
+      preview.autoplay = true
+      preview.loop = true
+      preview.playsInline = true
+      preview.muted = false // Allow audio to play
+      preview.volume = 1.0
+      // Visually hide but keep audio
+      preview.style = `
+        position: absolute;
+        width: 0;
+        height: 0;
+        opacity: 0;
+        pointer-events: none;
+        z-index: -1;
+      `
+      document.body.appendChild(preview)
+      // Create the canvas
+      const canvas = document.createElement("canvas")
+      canvas.id = "preview-canvas"
+      canvas.style = `
+        display: block;
+        max-width: 98%;
+        max-height: calc(100% - 18px);
+        margin: 0 auto;
+        border-radius: 50px;
+        background: black;
+        border: 8px solid white;
+      `
+      container.appendChild(canvas)
+      // Draw video frames to canvas
+      function drawVideoToCanvas() {
+        if (preview.readyState >= 2) {
+          // Set canvas size to match video
+          if (canvas.width !== preview.videoWidth || canvas.height !== preview.videoHeight) {
+            canvas.width = preview.videoWidth
+            canvas.height = preview.videoHeight
+            // Responsive container sizing
+            let maxW = window.innerWidth * 0.765
+            let maxH = window.innerHeight * 0.765
+            let ratio = preview.videoWidth / preview.videoHeight
+            let containerW = maxW
+            let containerH = maxW / ratio
+            if (containerH > maxH) {
+              containerH = maxH
+              containerW = maxH * ratio
+            }
+            container.style.width = containerW + "px"
+            container.style.height = containerH + "px"
           }
-          container.style.width = containerW + "px"
-          container.style.height = containerH + "px"
+          const ctx = canvas.getContext("2d")
+          ctx.drawImage(preview, 0, 0, canvas.width, canvas.height)
         }
-        const ctx = canvas.getContext("2d")
-        ctx.drawImage(preview, 0, 0, canvas.width, canvas.height)
+        requestAnimationFrame(drawVideoToCanvas)
       }
-      requestAnimationFrame(drawVideoToCanvas)
+      preview.addEventListener("play", () => {
+        drawVideoToCanvas()
+      })
+      // Start drawing if already playing
+      if (!preview.paused) {
+        drawVideoToCanvas()
+      }
+      // Start playback (autoplay)
+      preview.play()
     }
-    preview.addEventListener("play", () => {
-      drawVideoToCanvas()
-    })
-    // Start drawing if already playing
-    if (!preview.paused) {
-      drawVideoToCanvas()
-    }
-    // Start playback (autoplay)
-    preview.play()
   }
 
   removePreview() {
@@ -746,35 +834,57 @@ this.myData = JSON.parse(this.launchDataStore.getString("testData"))
   // You may remove launchParams if you have no need for it
   await session.applyLens(lens, launchParams)
 
-  // Set up event listeners
-  uiManager.recordButton.addEventListener("click", async () => {
-    if (uiManager.recordPressedCount % 2 === 0) {
-      if (Settings.recording.recordCaptureRenderTarget) {
-        //disable live canvas so the capture canvas that is behind live canvas will be shown instead
-        // capture canvas z-index is set behind live canvas in css
-        liveRenderTarget.style.display = "none"
-        //play capture render target so capture canvas will render len
-        await session.play("capture")
-        currentRenderTarget = captureRenderTarget
-      }
 
-      //setup audtio streams
-      mediaRecorder = await setupAudioStreams()
-      const success = await mediaRecorder.startRecording(session)
-      if (success) {
-        uiManager.updateRecordButtonState(true)
-      }
-    } else {
-      uiManager.updateRecordButtonState(false)
-      uiManager.toggleRecordButton(false)
-      mediaRecorder.stopRecording()
-      if (Settings.recording.recordCaptureRenderTarget) {
-        //show live render targetcanvas again
-        liveRenderTarget.style.display = "block"
-        //need to play live target for canvas to show anything
-        await session.play("live")
-        currentRenderTarget = liveRenderTarget
-      }
+  //----------------------------------
+  // BABA EDIT PHOTO/VIDEO PREVIEW
+  //----------------------------------
+  // --- New event listeners for tap/long-press ---
+  // Photo capture (tap)
+  uiManager.recordButton.addEventListener("photo-capture", async () => {
+    // Take a photo from the live video (canvas)
+    // Use the current liveRenderTarget canvas
+    const canvas = document.createElement('canvas')
+    canvas.width = liveRenderTarget.width
+    canvas.height = liveRenderTarget.height
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(liveRenderTarget, 0, 0, canvas.width, canvas.height)
+    const dataURL = canvas.toDataURL('image/png')
+    // Convert dataURL to Blob for download/share
+    function dataURLtoBlob(dataurl) {
+      const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1], bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n)
+      for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i)
+      return new Blob([u8arr], { type: mime })
+    }
+    const photoBlob = dataURLtoBlob(dataURL)
+    // Show the photo in the same preview as video, with share/download/back buttons
+    uiManager.displayPostRecordButtons(dataURL, photoBlob)
+    // Hide record button
+    uiManager.toggleRecordButton(false)
+  })
+
+  // Start recording (long press)
+  uiManager.recordButton.addEventListener("record-start", async () => {
+    if (Settings.recording.recordCaptureRenderTarget) {
+      liveRenderTarget.style.display = "none"
+      await session.play("capture")
+      currentRenderTarget = captureRenderTarget
+    }
+    mediaRecorder = await setupAudioStreams()
+    const success = await mediaRecorder.startRecording(session)
+    if (success) {
+      uiManager.updateRecordButtonState(true)
+    }
+  })
+
+  // Stop recording (release long press)
+  uiManager.recordButton.addEventListener("record-stop", async () => {
+    uiManager.updateRecordButtonState(false)
+    uiManager.toggleRecordButton(false)
+    if (mediaRecorder) mediaRecorder.stopRecording()
+    if (Settings.recording.recordCaptureRenderTarget) {
+      liveRenderTarget.style.display = "block"
+      await session.play("live")
+      currentRenderTarget = liveRenderTarget
     }
   })
 
@@ -787,6 +897,9 @@ this.myData = JSON.parse(this.launchDataStore.getString("testData"))
       console.error("Error switching camera:", error)
     }
   })
+  //----------------------------------
+  // END BABA EDIT PHOTO/VIDEO PREVIEW
+  //----------------------------------
 
   // Add back button handler
   document.getElementById("back-button").addEventListener("click", async () => {

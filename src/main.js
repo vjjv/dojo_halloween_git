@@ -83,35 +83,57 @@ import { launchParams } from "./launchParams"
   // You may remove launchParams if you have no need for it
   await session.applyLens(lens, launchParams)
 
-  // Set up event listeners
-  uiManager.recordButton.addEventListener("click", async () => {
-    if (uiManager.recordPressedCount % 2 === 0) {
-      if (Settings.recording.recordCaptureRenderTarget) {
-        //disable live canvas so the capture canvas that is behind live canvas will be shown instead
-        // capture canvas z-index is set behind live canvas in css
-        liveRenderTarget.style.display = "none"
-        //play capture render target so capture canvas will render len
-        await session.play("capture")
-        currentRenderTarget = captureRenderTarget
-      }
 
-      //setup audtio streams
-      mediaRecorder = await setupAudioStreams()
-      const success = await mediaRecorder.startRecording(session)
-      if (success) {
-        uiManager.updateRecordButtonState(true)
-      }
-    } else {
-      uiManager.updateRecordButtonState(false)
-      uiManager.toggleRecordButton(false)
-      mediaRecorder.stopRecording()
-      if (Settings.recording.recordCaptureRenderTarget) {
-        //show live render targetcanvas again
-        liveRenderTarget.style.display = "block"
-        //need to play live target for canvas to show anything
-        await session.play("live")
-        currentRenderTarget = liveRenderTarget
-      }
+  //----------------------------------
+  // BABA EDIT PHOTO/VIDEO PREVIEW
+  //----------------------------------
+  // --- New event listeners for tap/long-press ---
+  // Photo capture (tap)
+  uiManager.recordButton.addEventListener("photo-capture", async () => {
+    // Take a photo from the live video (canvas)
+    // Use the current liveRenderTarget canvas
+    const canvas = document.createElement('canvas')
+    canvas.width = liveRenderTarget.width
+    canvas.height = liveRenderTarget.height
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(liveRenderTarget, 0, 0, canvas.width, canvas.height)
+    const dataURL = canvas.toDataURL('image/png')
+    // Convert dataURL to Blob for download/share
+    function dataURLtoBlob(dataurl) {
+      const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1], bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n)
+      for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i)
+      return new Blob([u8arr], { type: mime })
+    }
+    const photoBlob = dataURLtoBlob(dataURL)
+    // Show the photo in the same preview as video, with share/download/back buttons
+    uiManager.displayPostRecordButtons(dataURL, photoBlob)
+    // Hide record button
+    uiManager.toggleRecordButton(false)
+  })
+
+  // Start recording (long press)
+  uiManager.recordButton.addEventListener("record-start", async () => {
+    if (Settings.recording.recordCaptureRenderTarget) {
+      liveRenderTarget.style.display = "none"
+      await session.play("capture")
+      currentRenderTarget = captureRenderTarget
+    }
+    mediaRecorder = await setupAudioStreams()
+    const success = await mediaRecorder.startRecording(session)
+    if (success) {
+      uiManager.updateRecordButtonState(true)
+    }
+  })
+
+  // Stop recording (release long press)
+  uiManager.recordButton.addEventListener("record-stop", async () => {
+    uiManager.updateRecordButtonState(false)
+    uiManager.toggleRecordButton(false)
+    if (mediaRecorder) mediaRecorder.stopRecording()
+    if (Settings.recording.recordCaptureRenderTarget) {
+      liveRenderTarget.style.display = "block"
+      await session.play("live")
+      currentRenderTarget = liveRenderTarget
     }
   })
 
@@ -124,6 +146,9 @@ import { launchParams } from "./launchParams"
       console.error("Error switching camera:", error)
     }
   })
+  //----------------------------------
+  // END BABA EDIT PHOTO/VIDEO PREVIEW
+  //----------------------------------
 
   // Add back button handler
   document.getElementById("back-button").addEventListener("click", async () => {
