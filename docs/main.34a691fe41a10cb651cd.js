@@ -445,14 +445,7 @@ class UIManager {
     this.switchButton.style.display = "none"
 
     if (Settings.ui.displayPreview) {
-      const isImage = typeof url === 'string' && url.startsWith('data:image/')
-      if (isImage) {
-        this.displayPreview(url)
-      } else {
-        setTimeout(() => {
-          this.displayPreview(url)
-        }, 500)
-      }
+      this.displayPreview(url)
     }
 
     // Determine if this is an image or video
@@ -584,26 +577,26 @@ class UIManager {
       `
       container.appendChild(preview)
     } else {
-      // Create the video element (visually hidden, but audio plays)
+      // Show video as a normal video element in the preview container
       preview = document.createElement("video")
       preview.src = dataURL
       preview.id = "preview"
-      preview.controls = false
+      preview.controls = true
       preview.autoplay = true
       preview.loop = true
       preview.playsInline = true
       preview.muted = false // Allow audio to play
       preview.volume = 1.0
-      // Visually hide but keep audio
       preview.style = `
-        position: absolute;
-        width: 0;
-        height: 0;
-        opacity: 0;
-        pointer-events: none;
-        z-index: -1;
+        display: block;
+        max-width: 98%;
+        max-height: calc(100% - 18px);
+        margin: 0 auto;
+        border-radius: 50px;
+        background: black;
+        border: 8px solid white;
       `
-      document.body.appendChild(preview)
+      container.appendChild(preview)
       // Add error handling for video load/playback
       preview.addEventListener('error', (e) => {
         console.error('Preview video failed to load:', e, preview.error)
@@ -617,54 +610,8 @@ class UIManager {
       preview.addEventListener('emptied', (e) => {
         console.error('Preview video emptied:', e)
       })
-      // Create the canvas
-      const canvas = document.createElement("canvas")
-      canvas.id = "preview-canvas"
-      canvas.style = `
-        display: block;
-        max-width: 98%;
-        max-height: calc(100% - 18px);
-        margin: 0 auto;
-        border-radius: 50px;
-        background: black;
-        border: 8px solid white;
-      `
-      container.appendChild(canvas)
-      // Draw video frames to canvas
-      function drawVideoToCanvas() {
-        if (preview.readyState >= 2) {
-          // Set canvas size to match video
-          if (canvas.width !== preview.videoWidth || canvas.height !== preview.videoHeight) {
-            canvas.width = preview.videoWidth
-            canvas.height = preview.videoHeight
-            // Responsive container sizing
-            let maxW = window.innerWidth * 0.765
-            let maxH = window.innerHeight * 0.765
-            let ratio = preview.videoWidth / preview.videoHeight
-            let containerW = maxW
-            let containerH = maxW / ratio
-            if (containerH > maxH) {
-              containerH = maxH
-              containerW = maxH * ratio
-            }
-            container.style.width = containerW + "px"
-            container.style.height = containerH + "px"
-          }
-          const ctx = canvas.getContext("2d")
-          ctx.drawImage(preview, 0, 0, canvas.width, canvas.height)
-        }
-        requestAnimationFrame(drawVideoToCanvas)
-      }
-      preview.addEventListener("play", () => {
-        drawVideoToCanvas()
-      })
-      // Start drawing if already playing
-      if (!preview.paused) {
-        drawVideoToCanvas()
-      }
-      // Start playback (autoplay)
-      preview.play()
     }
+    // No canvas preview logic remains
   }
 
   removePreview() {
