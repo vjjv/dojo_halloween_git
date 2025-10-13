@@ -11,6 +11,7 @@ export const Settings = {
     groupID: "f7f4e367-f4b3-4de5-8e81-e9c842f2bf0b",
     remoteAPISpecId: "YOUR_REMOTE_API_SPEC_ID_HERE", // From my lenses API section
     useRemoteAPI: false, // Set to true to enable using remote API
+    
   },
   // Camera settings
   camera: {

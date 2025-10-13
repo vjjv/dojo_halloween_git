@@ -16,8 +16,109 @@ import { VideoProcessor } from "./videoProcessor"
 import { Settings } from "./settings"
 import { launchParams } from "./launchParams"
 
+// Desktop detection functions
+function isDesktop() {
+  // Check if it's a mobile device
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  
+  // Check for touch capability (but not exclusive, as some laptops have touch)
+  const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+  
+  // Check screen size - desktop typically has larger screens
+  const isLargeScreen = window.screen.width >= 1024 && window.screen.height >= 768
+  
+  // Consider it desktop if it's not mobile AND has large screen
+  // OR if it's large screen without mobile user agent
+  return (!isMobile && isLargeScreen) || (!isMobile && !hasTouch)
+}
 
-;(async function () {
+function generateQRCode(text, size = 200) {
+  // Using QR Server API to generate QR codes
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(text)}`
+}
+
+function showDesktopOverlay() {
+  // Create the overlay
+  const overlay = document.createElement('div')
+  overlay.id = 'desktop-overlay'
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #314F98;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  `
+
+  // Create the text
+  const text = document.createElement('h1')
+  text.textContent = 'Open this link on mobile to start'
+  text.style.cssText = `
+    font-size: 3rem;
+    font-weight: 600;
+    margin: 0 0 2rem 0;
+    text-align: center;
+    max-width: 80%;
+  `
+
+  // Create QR code container
+  const qrContainer = document.createElement('div')
+  qrContainer.style.cssText = `
+    background: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  `
+
+  // Create QR code image
+  const qrCode = document.createElement('img')
+  const currentUrl = window.location.href
+  qrCode.src = generateQRCode(currentUrl, 300)
+  qrCode.alt = 'QR Code to open on mobile'
+  qrCode.style.cssText = `
+    display: block;
+    width: 300px;
+    height: 300px;
+  `
+
+  // Create URL text below QR code
+  const urlText = document.createElement('p')
+  urlText.textContent = currentUrl
+  urlText.style.cssText = `
+    font-size: 1rem;
+    margin: 1rem 0 0 0;
+    text-align: center;
+    word-break: break-all;
+    max-width: 80%;
+  `
+
+  // Assemble the overlay
+  qrContainer.appendChild(qrCode)
+  overlay.appendChild(text)
+  overlay.appendChild(qrContainer)
+  overlay.appendChild(urlText)
+
+  // Add to document
+  document.body.appendChild(overlay)
+
+  // Hide other UI elements
+  document.body.style.overflow = 'hidden'
+}
+
+// Check for desktop before doing anything else
+if (isDesktop()) {
+  showDesktopOverlay()
+  // Stop execution by not running the main function
+} else {
+  // Only run the main app if not on desktop
+  ;(async function () {
   let audioContexts = []
   let monitorNodes = []
   let monitoredStreams = []
@@ -250,3 +351,4 @@ import { launchParams } from "./launchParams"
     console.warn("Some monitor nodes may not be ready")
   }
 })()
+} // End of else block for desktop check
