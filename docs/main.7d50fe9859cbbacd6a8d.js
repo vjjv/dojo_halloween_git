@@ -508,7 +508,7 @@ class UIManager {
     // Add white text below the video preview
     let previewText = document.createElement("div")
     previewText.id = "preview-lorem"
-    previewText.innerHTML = `Download you photo and share! Tag us on Instagram<br>@altrarunning @experienceanewhigh`
+    previewText.innerHTML = `Save it & share your spooky look!<br>Tag @dojo_official_ on Instagram to win exclusive freebies`
     previewText.style = `
       position: fixed;
       left: 0;
