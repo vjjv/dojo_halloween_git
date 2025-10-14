@@ -22,19 +22,71 @@ export class UIManager {
     this.recordButton.ontouchstart = null
     this.recordButton.ontouchend = null
 
+    // Prevent context menu on long press (Chrome save image behavior)
+    this.recordButton.addEventListener('contextmenu', (e) => {
+      e.preventDefault()
+      return false
+    })
+    
+    // Prevent drag and select behaviors
+    this.recordButton.addEventListener('dragstart', (e) => {
+      e.preventDefault()
+      return false
+    })
+    this.recordButton.addEventListener('selectstart', (e) => {
+      e.preventDefault()
+      return false
+    })
+    
+    // Set CSS properties to prevent dragging and selection
+    this.recordButton.style.userSelect = 'none'
+    this.recordButton.style.webkitUserSelect = 'none'
+    this.recordButton.style.mozUserSelect = 'none'
+    this.recordButton.style.msUserSelect = 'none'
+    this.recordButton.style.webkitTouchCallout = 'none'
+    this.recordButton.style.webkitUserDrag = 'none'
+    this.recordButton.style.webkitTapHighlightColor = 'transparent'
+    this.recordButton.draggable = false
+    
     // Mouse events
     this.recordButton.addEventListener('mousedown', (e) => this._handlePressStart(e))
     this.recordButton.addEventListener('mouseup', (e) => this._handlePressEnd(e))
     this.recordButton.addEventListener('mouseleave', (e) => this._handlePressCancel(e))
     // Touch events
-    this.recordButton.addEventListener('touchstart', (e) => this._handlePressStart(e))
-    this.recordButton.addEventListener('touchend', (e) => this._handlePressEnd(e))
-    this.recordButton.addEventListener('touchcancel', (e) => this._handlePressCancel(e))
+    this.recordButton.addEventListener('touchstart', (e) => this._handlePressStart(e), { passive: false })
+    this.recordButton.addEventListener('touchend', (e) => this._handlePressEnd(e), { passive: false })
+    this.recordButton.addEventListener('touchcancel', (e) => this._handlePressCancel(e), { passive: false })
+    
+    // Bind the context menu prevention method
+    this._preventContextMenu = this._preventContextMenu.bind(this)
+  }
+  
+  _preventContextMenu(e) {
+    e.preventDefault()
+    e.stopPropagation()
+    return false
   }
 
   _handlePressStart(e) {
     if (this.isRecording) return
     e.preventDefault()
+    e.stopPropagation()
+    e.stopImmediatePropagation()
+    
+    // Prevent any default behaviors (drag, context menu, etc.)
+    if (e.type === 'mousedown') {
+      e.target.ondragstart = () => false
+    }
+    
+    // For iOS, prevent long press context menu with additional techniques
+    if (e.type === 'touchstart') {
+      // Prevent iOS callout/context menu
+      document.addEventListener('contextmenu', this._preventContextMenu, { passive: false, once: true })
+      // Clear any existing selection
+      if (window.getSelection) {
+        window.getSelection().removeAllRanges()
+      }
+    }
     // Animate outline scale up and reduce opacity for visual feedback during long press
   this.recordOutline.style.transition = 'transform 0.2s cubic-bezier(0.4,0,0.2,1), opacity 0.2s cubic-bezier(0.4,0,0.2,1)'
   this.recordOutline.style.transformOrigin = 'center center'
@@ -50,6 +102,11 @@ export class UIManager {
 
   _handlePressEnd(e) {
     e.preventDefault()
+    e.stopPropagation()
+    
+    // Clean up context menu prevention
+    document.removeEventListener('contextmenu', this._preventContextMenu)
+    
     // Revert outline animation
   this.recordOutline.style.transform = 'translateX(-50%) scale(1)'
   this.recordOutline.style.opacity = '1'
@@ -69,6 +126,9 @@ export class UIManager {
   }
 
   _handlePressCancel(e) {
+    // Clean up context menu prevention
+    document.removeEventListener('contextmenu', this._preventContextMenu)
+    
     // Revert outline animation
   this.recordOutline.style.transform = 'translateX(-50%) scale(1)'
   this.recordOutline.style.opacity = '1'
@@ -106,24 +166,41 @@ export class UIManager {
 
   displayPostRecordButtons(url, fixedBlob) {
     // Device detection
-    const isMobileOrTablet = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    const isAndroid = /Android/i.test(navigator.userAgent)
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    const isDesktop = !isAndroid && !isIOS
+    
     const shareButton = document.getElementById("share-button")
     const downloadButton = document.getElementById("download-button")
+    
     if (shareButton && downloadButton) {
-      if (isMobileOrTablet) {
+      if (isAndroid) {
+        // Android: show both buttons
+        shareButton.style.display = "inline-block"
+        downloadButton.style.display = "inline-block"
+        // Position buttons side by side
+        shareButton.style.position = "absolute"
+        shareButton.style.transform = "translateX(-50%)"
+        shareButton.style.left = "60%"
+        downloadButton.style.position = "absolute"
+        downloadButton.style.transform = "translateX(-50%)"
+        downloadButton.style.left = "40%"
+      } else if (isIOS) {
+        // iOS: only share button
         shareButton.style.display = "inline-block"
         downloadButton.style.display = "none"
+        shareButton.style.position = "absolute"
+        shareButton.style.transform = "translateX(-50%)"
+        shareButton.style.left = "50%"
       } else {
+        // Desktop: only download button
         shareButton.style.display = "none"
         downloadButton.style.display = "inline-block"
+        downloadButton.style.position = "absolute"
+        downloadButton.style.transform = "translateX(-50%)"
+        downloadButton.style.left = "50%"
       }
     }
-    shareButton.style.position = "absolute"
-    shareButton.style.transform = "translateX(-50%)"
-    shareButton.style.left = "50%"
-    downloadButton.style.position = "absolute"
-    downloadButton.style.transform = "translateX(-50%)"
-    downloadButton.style.left = "50%"
 
     // Move the back button directly into the action-buttons container
     const actionButtons = document.getElementById("action-buttons")
