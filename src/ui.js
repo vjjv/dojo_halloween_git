@@ -292,7 +292,7 @@ export class UIManager {
       bottom: 2vh;
       color: white;
       text-align: center;
-      font-size: 2em;
+      font-size: 1.8vh;
       font-family: sans-serif;
       z-index: 1100;
       pointer-events: none;
