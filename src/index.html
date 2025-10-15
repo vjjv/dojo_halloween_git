@@ -6,6 +6,12 @@
     <meta name="description" content="Camera Kit Template" />
     <meta name="robots" content="noindex" />
     <script defer src="https://umami-mxp.up.railway.app/script.js" data-website-id="09f2b2e9-229d-4b77-897e-b2d5915e0b1e"></script>
+    <!-- Force HTTPS redirect for GitHub Pages -->
+    <script>
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        location.replace('https:' + window.location.href.substring(window.location.protocol.length));
+      }
+    </script>
   </head>
 
   <body>
