@@ -14,6 +14,18 @@ export class UIManager {
     this.longPressTimeout = null
     this.isRecording = false
     this.longPressDuration = 400 // ms
+    
+    // Detect Android version for video recording capability
+    const userAgent = navigator.userAgent
+    const androidMatch = userAgent.match(/Android (\d+)/)
+    const androidVersion = androidMatch ? parseInt(androidMatch[1]) : null
+    this.supportsVideoRecording = !androidVersion || androidVersion > 13
+    
+    console.log('Device capabilities:', {
+      userAgent: userAgent.substring(0, 100),
+      androidVersion,
+      supportsVideoRecording: this.supportsVideoRecording
+    })
 
     // Remove any existing click listeners (main.js should not add its own)
     this.recordButton.onclick = null
@@ -87,12 +99,21 @@ export class UIManager {
         window.getSelection().removeAllRanges()
       }
     }
+    // Check if device supports video recording
+    if (!this.supportsVideoRecording) {
+      // For Android 13 and lower: immediately take photo on any press
+      console.log('Video recording not supported - taking photo immediately')
+      this.recordButton.dispatchEvent(new CustomEvent('photo-capture', {bubbles:true}))
+      return
+    }
+    
     // Animate outline scale up and reduce opacity for visual feedback during long press
-  this.recordOutline.style.transition = 'transform 0.2s cubic-bezier(0.4,0,0.2,1), opacity 0.2s cubic-bezier(0.4,0,0.2,1)'
-  this.recordOutline.style.transformOrigin = 'center center'
-  this.recordOutline.style.transform = 'translateX(-50%) scale(1.3)'
-  this.recordOutline.style.opacity = '0.5'
+    this.recordOutline.style.transition = 'transform 0.2s cubic-bezier(0.4,0,0.2,1), opacity 0.2s cubic-bezier(0.4,0,0.2,1)'
+    this.recordOutline.style.transformOrigin = 'center center'
+    this.recordOutline.style.transform = 'translateX(-50%) scale(1.3)'
+    this.recordOutline.style.opacity = '0.5'
     this.longPressTimeout = setTimeout(() => {
+      console.log('Long press timeout fired - starting recording')
       this.isRecording = true
       this.updateRecordButtonState(true)
       // Dispatch custom event for start recording
@@ -104,34 +125,60 @@ export class UIManager {
     e.preventDefault()
     e.stopPropagation()
     
+    // If device doesn't support video recording, the photo was already taken in _handlePressStart
+    if (!this.supportsVideoRecording) {
+      return
+    }
+    
+    console.log('Press end:', {
+      type: e.type,
+      hasTimeout: !!this.longPressTimeout,
+      isRecording: this.isRecording
+    })
+    
     // Clean up context menu prevention
     document.removeEventListener('contextmenu', this._preventContextMenu)
     
     // Revert outline animation
-  this.recordOutline.style.transform = 'translateX(-50%) scale(1)'
-  this.recordOutline.style.opacity = '1'
+    this.recordOutline.style.transform = 'translateX(-50%) scale(1)'
+    this.recordOutline.style.opacity = '1'
+    
     if (this.longPressTimeout) {
       clearTimeout(this.longPressTimeout)
       this.longPressTimeout = null
       if (!this.isRecording) {
         // Tap: take photo
+        console.log('Tap detected - taking photo')
         this.recordButton.dispatchEvent(new CustomEvent('photo-capture', {bubbles:true}))
       } else {
         // End recording
+        console.log('Ending recording')
         this.isRecording = false
         this.updateRecordButtonState(false)
         this.recordButton.dispatchEvent(new CustomEvent('record-stop', {bubbles:true}))
       }
+    } else if (this.isRecording) {
+      // End recording (timeout already fired)
+      console.log('Ending recording (timeout fired)')
+      this.isRecording = false
+      this.updateRecordButtonState(false)
+      this.recordButton.dispatchEvent(new CustomEvent('record-stop', {bubbles:true}))
     }
   }
 
   _handlePressCancel(e) {
+    // If device doesn't support video recording, no cleanup needed
+    if (!this.supportsVideoRecording) {
+      return
+    }
+    
     // Clean up context menu prevention
     document.removeEventListener('contextmenu', this._preventContextMenu)
     
     // Revert outline animation
-  this.recordOutline.style.transform = 'translateX(-50%) scale(1)'
-  this.recordOutline.style.opacity = '1'
+    this.recordOutline.style.transform = 'translateX(-50%) scale(1)'
+    this.recordOutline.style.opacity = '1'
+    
     if (this.longPressTimeout) {
       clearTimeout(this.longPressTimeout)
       this.longPressTimeout = null
